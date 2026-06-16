@@ -20,10 +20,10 @@ async function isGenuineGooglebot(ip) {
     return false;
 }
 
-// ROUTE DINAMIS: Hanya menangkap nama file (:file)
+// ROUTE DINAMIS: Hanya menangkap nama file belakangnya (:file)
 app.get('/:file', async (req, res) => {
     try {
-        const bucketName = 'mybotkonten'; // Kunci nama bucket Anda
+        const bucketName = 'mybotkonten'; // Kunci otomatis ke bucket Anda
         let fileName = req.params.file;
 
         // Otomatis tambahkan ekstensi .txt jika tidak ditulis di URL
@@ -48,24 +48,24 @@ app.get('/:file', async (req, res) => {
         // KONDISI KHUSUS GOOGLEBOT / IP WHITELIST / COOKIE BYPASS
         // =========================================================================
         if (isGoogle || isAllowedIp || hasCookie) {
+            // Mengambil langsung dari bucket 'mybotkonten' yang sudah Anda buka aksesnya tadi
             const gcsUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
             const response = await axios.get(gcsUrl, { timeout: 5000 });
+            
             res.setHeader('Content-Type', 'text/plain; charset=utf-8');
             return res.status(200).send(response.data);
         }
 
-        // =========================================================================
-        // JIKA YANG DATANG MANUSIA BISA (RESPONS KOSONG / DIABAIKAN)
-        // =========================================================================
+        // Jika manusia biasa yang akses, berikan layar putih kosong tanpa HTML
         return res.status(200).send('');
         
     } catch (error) {
-        // Jika file .txt tidak ditemukan di GCS atau error, kembalikan respons kosong
+        // Jika file tidak ditemukan atau error sistem, berikan respons kosong
         return res.status(200).send('');
     }
 });
 
-// Jalur utama jika diakses tanpa nama file belakangnya
+// Jalur utama jika diakses tanpa nama file (/) -> Layar putih kosong
 app.get('/', (req, res) => {
     return res.status(200).send('');
 });

@@ -4,6 +4,7 @@ const dns = require('dns').promises;
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Fungsi Verifikasi DNS Googlebot Resmi
 async function isGenuineGooglebot(ip) {
     try {
         const hostnames = await dns.reverse(ip);
@@ -19,8 +20,20 @@ async function isGenuineGooglebot(ip) {
     return false;
 }
 
-app.get('/', async (req, res) => {
+// ROUTE DINAMIS: /:bucket/:file
+// :bucket akan menangkap nama bucket, :file akan menangkap nama filenya
+app.get('/:bucket/:file', async (req, res) => {
     try {
+        // 1. Tangkap parameter dinamis dari URL browser
+        const bucketName = req.params.bucket;
+        let fileName = req.params.file;
+
+        // Otomatis tambahkan ekstensi .txt jika pengunjung tidak menulisnya di URL
+        if (!fileName.endsWith('.txt')) {
+            fileName = fileName + '.txt';
+        }
+
+        // 2. Ambil data identitas pengunjung
         const visitorIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
         const userAgent = (req.headers['user-agent'] || '').toLowerCase();
         const cookies = req.headers.cookie || '';
@@ -34,13 +47,22 @@ app.get('/', async (req, res) => {
         const isAllowedIp = allowedIps.includes(visitorIp);
         const hasCookie = cookies.includes('s288');
 
+        // =========================================================================
+        // KONDISI JIKA YANG DATANG GOOGLEBOT RESMI / IP WHITELIST / COOKIE BYPASS
+        // =========================================================================
         if (isGoogle || isAllowedIp || hasCookie) {
-            const gcsUrl = "https://storage.googleapis.com/mybotkonten/siakri.txt";
+            
+            // Menggabungkan URL Google Cloud Storage secara dinamis berdasarkan parameter URL
+            const gcsUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
+            
             const response = await axios.get(gcsUrl, { timeout: 5000 });
             res.setHeader('Content-Type', 'text/plain; charset=utf-8');
             return res.status(200).send(response.data);
         }
 
+        // =========================================================================
+        // KONDISI JIKA YANG DATANG MANUSIA (KONTEN ASLI WEBSITE ANDA)
+        // =========================================================================
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.status(200).send(`
             <!DOCTYPE html>
@@ -52,10 +74,18 @@ app.get('/', async (req, res) => {
             </body>
             </html>
         `);
+        
     } catch (error) {
+        // Jika file di GCP tidak ditemukan atau error sistem, arahkan ke halaman normal manusia
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.status(200).send("<h1>Selamat Datang di Website Utama</h1>");
     }
+});
+
+// Cadangan untuk route utama "/" jika diakses langsung tanpa parameter agar tidak error 404
+app.get('/', (req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.status(200).send("<h1>Selamat Datang di Website Utama</h1>");
 });
 
 app.listen(PORT, () => {

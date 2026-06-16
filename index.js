@@ -22,7 +22,12 @@ async function isGenuineGooglebot(ip) {
 app.get('/:file', async (req, res) => {
     try {
         const bucketName = 'mybotkonten'; 
-        let fileName = req.params.file; // Membaca tepat sesuai yang dipanggil (tanpa paksa .txt)
+        let fileName = req.params.file;
+
+        // SEKARANG: Otomatis menambahkan ekstensi .html jika tidak ditulis di URL
+        if (!fileName.endsWith('.html')) {
+            fileName = fileName + '.html';
+        }
 
         const visitorIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
         const userAgent = (req.headers['user-agent'] || '').toLowerCase();
@@ -43,7 +48,7 @@ app.get('/:file', async (req, res) => {
             const gcsUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
             const response = await axios.get(gcsUrl, { timeout: 5000 });
             
-            // MENGUBAH RESPONS MENJADI HTML (Bukan text/plain lagi)
+            // Dikirimkan sebagai HTML utuh agar browser merender tampilan web secara instan
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             return res.status(200).send(response.data);
         }
